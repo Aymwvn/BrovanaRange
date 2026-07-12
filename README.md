@@ -5,11 +5,11 @@
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Docker](https://img.shields.io/badge/docker-compose-2496ED?logo=docker&logoColor=white)
 ![Status](https://img.shields.io/badge/status-active--development-orange)
+![CI](https://github.com/Aymwvn/BrovanaRange/actions/workflows/ci.yml/badge.svg)
 
 ## Demo
 
 ![BrovanaRange Dashboard](docs/screenshots/dashboard.png)
-<!-- Replace with your actual screenshot/GIF -->
 
 ## What is BrovanaRange?
 
