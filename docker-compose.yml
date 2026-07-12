@@ -1,0 +1,75 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: redrange-db
+    env_file: .env.example
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-redrange}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-RedRange_DB_ChangeMe_2026!}
+      POSTGRES_DB: ${POSTGRES_DB:-redrange}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-redrange}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    container_name: redrange-docker-proxy
+    environment:
+      CONTAINERS: 1
+      NETWORKS: 1
+      IMAGES: 1
+      INFO: 1
+      POST: 1
+      EXEC: 1
+      SERVICES: 0
+      TASKS: 0
+      SWARM: 0
+      SYSTEM: 0
+      VOLUMES: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - lab_control_net
+
+  backend:
+    build: ./backend
+    container_name: redrange-api
+    env_file: .env.example
+    depends_on:
+      db:
+        condition: service_healthy
+      docker-socket-proxy:
+        condition: service_started
+    volumes:
+      - ./labs:/opt/redrange/labs:ro
+    ports:
+      - "8000:8000"
+    networks:
+      - backend_net
+      - lab_control_net
+
+  frontend:
+    build: ./frontend
+    container_name: redrange-web
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+    networks:
+      - frontend_net
+
+volumes:
+  postgres_data:
+
+networks:
+  frontend_net:
+  backend_net:
+    internal: true
+  lab_control_net:
+    name: redrange_lab_control

@@ -1,0 +1,107 @@
+<svg viewBox="0 0 1000 780" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#5b6472"/>
+    </marker>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#2563eb"/>
+    </marker>
+  </defs>
+
+  <rect width="1000" height="780" fill="#0f1117"/>
+
+  <text x="500" y="42" text-anchor="middle" fill="#f4f6fb" font-size="24" font-weight="700">BrovanaRange — System Architecture</text>
+  <text x="500" y="66" text-anchor="middle" fill="#8b93a7" font-size="13">Isolated per-user labs, monitored end-to-end by Suricata + Zeek</text>
+
+  <!-- Internet -->
+  <circle cx="500" cy="115" r="26" fill="#1a1d27" stroke="#5b6472" stroke-width="1.5"/>
+  <text x="500" y="120" text-anchor="middle" fill="#c7cddb" font-size="12" font-weight="600">Internet</text>
+  <line x1="500" y1="141" x2="500" y2="176" stroke="#5b6472" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="514" y="163" fill="#8b93a7" font-size="11">HTTPS / TLS</text>
+
+  <!-- Nginx -->
+  <rect x="380" y="178" width="240" height="56" rx="10" fill="#1e2130" stroke="#2563eb" stroke-width="1.8"/>
+  <text x="500" y="203" text-anchor="middle" fill="#eaf0ff" font-size="14" font-weight="700">Nginx Reverse Proxy</text>
+  <text x="500" y="221" text-anchor="middle" fill="#8b93a7" font-size="11">TLS termination · public entrypoint</text>
+
+  <!-- Split lines to frontend/backend -->
+  <line x1="440" y1="234" x2="270" y2="284" stroke="#5b6472" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="560" y1="234" x2="730" y2="284" stroke="#5b6472" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- DMZ zone -->
+  <rect x="140" y="286" width="260" height="90" rx="10" fill="#151824" stroke="#3a4056" stroke-width="1.2" stroke-dasharray="4 3"/>
+  <text x="270" y="302" text-anchor="middle" fill="#6b7385" font-size="10" letter-spacing="1">FRONTEND / DMZ NETWORK</text>
+  <rect x="170" y="312" width="200" height="50" rx="8" fill="#1e2130" stroke="#4a90e2" stroke-width="1.5"/>
+  <text x="270" y="333" text-anchor="middle" fill="#eaf0ff" font-size="13" font-weight="600">React Frontend</text>
+  <text x="270" y="349" text-anchor="middle" fill="#8b93a7" font-size="10">port 5173 (not public)</text>
+
+  <!-- Backend zone -->
+  <rect x="600" y="286" width="260" height="90" rx="10" fill="#151824" stroke="#3a4056" stroke-width="1.2" stroke-dasharray="4 3"/>
+  <text x="730" y="302" text-anchor="middle" fill="#6b7385" font-size="10" letter-spacing="1">BACKEND / INTERNAL NETWORK</text>
+  <rect x="630" y="312" width="200" height="50" rx="8" fill="#1e2130" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="730" y="333" text-anchor="middle" fill="#eaf0ff" font-size="13" font-weight="600">FastAPI Backend</text>
+  <text x="730" y="349" text-anchor="middle" fill="#8b93a7" font-size="10">JWT · RBAC · rate limiting</text>
+
+  <!-- Backend fan-out -->
+  <line x1="680" y1="376" x2="560" y2="440" stroke="#5b6472" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="730" y1="376" x2="730" y2="440" stroke="#5b6472" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="790" y1="376" x2="880" y2="440" stroke="#5b6472" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- DB -->
+  <rect x="460" y="442" width="200" height="56" rx="10" fill="#1e2130" stroke="#e0a52c" stroke-width="1.5"/>
+  <text x="560" y="466" text-anchor="middle" fill="#eaf0ff" font-size="13" font-weight="600">PostgreSQL</text>
+  <text x="560" y="482" text-anchor="middle" fill="#8b93a7" font-size="10">isolated network · no public port</text>
+
+  <!-- Docker socket proxy -->
+  <rect x="640" y="442" width="200" height="56" rx="10" fill="#1e2130" stroke="#e0a52c" stroke-width="1.5"/>
+  <text x="740" y="466" text-anchor="middle" fill="#eaf0ff" font-size="13" font-weight="600">Docker Socket Proxy</text>
+  <text x="740" y="482" text-anchor="middle" fill="#8b93a7" font-size="10">restricted, no direct mount</text>
+
+  <!-- Lab containers -->
+  <rect x="820" y="442" width="160" height="56" rx="10" fill="#1e2130" stroke="#e0a52c" stroke-width="1.5"/>
+  <text x="900" y="466" text-anchor="middle" fill="#eaf0ff" font-size="13" font-weight="600">Per-User Labs</text>
+  <text x="900" y="482" text-anchor="middle" fill="#8b93a7" font-size="10">gVisor / runc</text>
+
+  <!-- Lab spawn arrow -->
+  <line x1="900" y1="498" x2="900" y2="540" stroke="#5b6472" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Lab network zone -->
+  <rect x="700" y="542" width="260" height="130" rx="10" fill="#151824" stroke="#3a4056" stroke-width="1.2" stroke-dasharray="4 3"/>
+  <text x="830" y="558" text-anchor="middle" fill="#6b7385" font-size="10" letter-spacing="1">PER-USER LAB NETWORK</text>
+  <rect x="720" y="568" width="100" height="46" rx="8" fill="#1e2130" stroke="#ef4444" stroke-width="1.4"/>
+  <text x="770" y="596" text-anchor="middle" fill="#eaf0ff" font-size="11" font-weight="600">Target</text>
+  <rect x="840" y="568" width="100" height="46" rx="8" fill="#1e2130" stroke="#ef4444" stroke-width="1.4"/>
+  <text x="890" y="596" text-anchor="middle" fill="#eaf0ff" font-size="11" font-weight="600">Attacker</text>
+  <text x="830" y="638" text-anchor="middle" fill="#8b93a7" font-size="10">isolated bridge · CPU/RAM/PID limits</text>
+  <text x="830" y="654" text-anchor="middle" fill="#8b93a7" font-size="10">no-new-privileges · dropped caps</text>
+
+  <!-- IDS monitoring -->
+  <line x1="700" y1="605" x2="440" y2="605" stroke="#2563eb" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#arrowBlue)"/>
+  <text x="560" y="596" text-anchor="middle" fill="#4a90e2" font-size="10">mirrored traffic</text>
+
+  <rect x="140" y="542" width="260" height="130" rx="10" fill="#151824" stroke="#2563eb" stroke-width="1.4"/>
+  <text x="270" y="562" text-anchor="middle" fill="#4a90e2" font-size="11" font-weight="700" letter-spacing="1">IDS / NETWORK MONITORING</text>
+  <rect x="160" y="576" width="105" height="46" rx="8" fill="#1e2130" stroke="#4a90e2" stroke-width="1.4"/>
+  <text x="212" y="602" text-anchor="middle" fill="#eaf0ff" font-size="12" font-weight="600">Suricata</text>
+  <rect x="275" y="576" width="105" height="46" rx="8" fill="#1e2130" stroke="#4a90e2" stroke-width="1.4"/>
+  <text x="327" y="602" text-anchor="middle" fill="#eaf0ff" font-size="12" font-weight="600">Zeek</text>
+  <text x="270" y="638" text-anchor="middle" fill="#8b93a7" font-size="10">EVE JSON · conn/DNS/DHCP logs</text>
+  <text x="270" y="654" text-anchor="middle" fill="#8b93a7" font-size="10">passive deployment</text>
+
+  <!-- Logs feed to backend -->
+  <line x1="270" y1="542" x2="270" y2="410" stroke="#2563eb" stroke-width="2" stroke-dasharray="5 3"/>
+  <line x1="270" y1="410" x2="630" y2="335" stroke="#2563eb" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#arrowBlue)"/>
+  <text x="330" y="410" fill="#4a90e2" font-size="10">alerts / logs</text>
+
+  <!-- Legend -->
+  <rect x="140" y="710" width="14" height="14" rx="3" fill="#1e2130" stroke="#4a90e2" stroke-width="1.4"/>
+  <text x="162" y="721" fill="#8b93a7" font-size="11">Monitoring</text>
+  <rect x="260" y="710" width="14" height="14" rx="3" fill="#1e2130" stroke="#22c55e" stroke-width="1.4"/>
+  <text x="282" y="721" fill="#8b93a7" font-size="11">Application</text>
+  <rect x="390" y="710" width="14" height="14" rx="3" fill="#1e2130" stroke="#e0a52c" stroke-width="1.4"/>
+  <text x="412" y="721" fill="#8b93a7" font-size="11">Data / Infra</text>
+  <rect x="510" y="710" width="14" height="14" rx="3" fill="#1e2130" stroke="#ef4444" stroke-width="1.4"/>
+  <text x="532" y="721" fill="#8b93a7" font-size="11">Lab containers</text>
+  <line x1="640" y1="717" x2="668" y2="717" stroke="#2563eb" stroke-width="2" stroke-dasharray="5 3"/>
+  <text x="676" y="721" fill="#8b93a7" font-size="11">Traffic mirror / logs</text>
+</svg>
