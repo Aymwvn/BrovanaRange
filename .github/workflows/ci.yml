@@ -34,6 +34,9 @@ jobs:
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
       - name: Check backend imports cleanly
+        env:
+          DATABASE_URL: postgresql://ci_user:ci_pass@localhost:5432/ci_db
+          JWT_SECRET: this_is_a_dummy_ci_secret_not_used_in_production_00000000
         run: python -c "import app.main"
 
   frontend:
