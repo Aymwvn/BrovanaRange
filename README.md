@@ -13,7 +13,7 @@
 
 ## What is BrovanaRange?
 
-BrovanaRange is an open-source cyber range platform that lets users spin up isolated, containerized labs to practice offensive security — web exploitation, privilege escalation, forensics — while every action is monitored by a real IDS stack (Suricata + Zeek). It's built like a production platform, not a toy: JWT auth with MFA, RBAC, rate limiting, audit logging, and an anti-cheat system that detects flag sharing and automated solving.
+BrovanaRange is an open-source cyber range platform that lets users spin up isolated, containerized labs to practice offensive security — web exploitation, privilege escalation, and forensics — while every action is monitored by a real IDS stack (Suricata + Zeek). It's built like a production platform, not a toy: JWT auth with MFA, RBAC, rate limiting, audit logging, and an anti-cheat system that detects flag sharing and automated solving.
 
 ## Key Features
 
@@ -42,6 +42,27 @@ Traffic flows through Nginx (TLS termination) into segmented Docker networks —
 | IDS / Monitoring | Suricata, Zeek |
 | Auth | JWT, Argon2, TOTP MFA |
 | Metrics | Prometheus-compatible `/metrics` |
+
+## HTTP Honeypot
+
+BrovanaRange includes a standalone, low-interaction HTTP honeypot for capturing opportunistic scans and authentication attempts. It listens on host port `8081`, returns decoy responses for common targets such as `/admin` and `/phpmyadmin`, and records JSON events to its Docker logs. It is isolated on a dedicated internal network with no access to the application, database, Docker socket, lab networks, or persistent data.
+
+Run and monitor it with:
+
+```bash
+docker compose up -d --build honeypot
+docker compose logs -f honeypot
+```
+
+Deployment and safety details are in [`honeypot/README.md`](honeypot/README.md).
+
+## Included Labs
+
+| Lab | Focus | What the learner does |
+|---|---|---|
+| Linux Privilege Escalation | Linux | Enumerates a sudo misconfiguration and recovers a dynamic root flag. |
+| Red Injection | Web exploitation | Exploits a vulnerable local service and recovers a dynamic flag. |
+| Skeleton DFIR | Digital forensics | Investigates a compromised container and its evidence. |
 
 ## Security Architecture
 

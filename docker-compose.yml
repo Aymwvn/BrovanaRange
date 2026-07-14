@@ -64,6 +64,27 @@ services:
     networks:
       - frontend_net
 
+  # Public decoy only. It is deliberately disconnected from every
+  # application network and has no access to the Docker socket or volumes.
+  honeypot:
+    build: ./honeypot
+    container_name: brovanarange-honeypot
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 128m
+    cpus: 0.25
+    pids_limit: 64
+    networks:
+      - honeypot_net
+
 volumes:
   postgres_data:
 
@@ -73,3 +94,5 @@ networks:
     internal: true
   lab_control_net:
     name: redrange_lab_control
+  honeypot_net:
+    internal: true
