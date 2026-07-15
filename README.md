@@ -140,6 +140,9 @@ BrovanaRange is designed with a defense-in-depth approach across every layer:
 
 - Full audit logging: auth events, lab lifecycle, flag submissions, admin actions
 - Honeypot event dashboard with optional VirusTotal IP reputation enrichment
+- Automatic expired-lab cleanup with an admin override button
+- Admin controls for stopping active lab sessions
+- Blocked IP watchlist populated by VirusTotal reputation results
 - Prometheus-compatible `/metrics` endpoint
 - Admin dashboards for sessions, containers, and audit logs
 </details>

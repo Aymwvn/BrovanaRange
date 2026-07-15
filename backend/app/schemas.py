@@ -182,3 +182,17 @@ class HoneypotEventOut(BaseModel):
     count: int
     reputation: IpReputationOut | None = None
     model_config = {"from_attributes": True}
+
+class BlockedIpWatchlistOut(BaseModel):
+    id: int
+    ip: str
+    source: str
+    reason: str
+    malicious: int
+    suspicious: int
+    as_owner: str
+    country: str
+    first_seen_at: datetime
+    last_seen_at: datetime
+    active: bool
+    model_config = {"from_attributes": True}

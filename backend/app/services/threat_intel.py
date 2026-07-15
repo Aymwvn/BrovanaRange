@@ -7,7 +7,7 @@ import urllib.request
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.models import IpReputationCache
+from app.models import BlockedIpWatchlist, IpReputationCache
 
 VT_IP_URL = "https://www.virustotal.com/api/v3/ip_addresses/{ip}"
 
@@ -48,6 +48,23 @@ def lookup_virustotal_ip(ip: str) -> dict:
     )
     with urllib.request.urlopen(request, timeout=8) as response:
         return json.loads(response.read().decode("utf-8"))
+
+
+def upsert_watchlist_entry(db: Session, reputation: IpReputationCache) -> None:
+    if not reputation.blocked:
+        return
+    entry = db.query(BlockedIpWatchlist).filter_by(ip=reputation.ip).first()
+    if not entry:
+        entry = BlockedIpWatchlist(ip=reputation.ip, first_seen_at=datetime.utcnow())
+        db.add(entry)
+    entry.source = reputation.provider
+    entry.reason = f"VirusTotal malicious detections >= {settings.VIRUSTOTAL_MALICIOUS_THRESHOLD}"
+    entry.malicious = reputation.malicious
+    entry.suspicious = reputation.suspicious
+    entry.as_owner = reputation.as_owner
+    entry.country = reputation.country
+    entry.last_seen_at = datetime.utcnow()
+    entry.active = True
 
 
 def get_ip_reputation(db: Session, ip: str, *, force: bool = False) -> IpReputationCache:
@@ -94,6 +111,7 @@ def get_ip_reputation(db: Session, ip: str, *, force: bool = False) -> IpReputat
         record.error = f"virustotal_error:{str(exc)[:200]}"
     record.checked_at = datetime.utcnow()
     db.add(record)
+    upsert_watchlist_entry(db, record)
     db.commit()
     db.refresh(record)
     return record

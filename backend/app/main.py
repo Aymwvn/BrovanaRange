@@ -1,3 +1,6 @@
+import threading
+import time
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter
@@ -9,6 +12,7 @@ from app.database import Base, engine, SessionLocal
 from app.migrations import ensure_runtime_schema
 from app.models import Lab, Subscription, User
 from app.routes import admin, auth, labs, metrics, scoreboard, subscriptions
+from app.services.lab_cleanup import cleanup_expired_sessions
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -37,6 +41,18 @@ SEED_LABS = [
     dict(slug="web-injection", title="Red Injection", category="Web Exploitation", difficulty="Basic", description="Exploit a vulnerable local web service with command injection and recover the dynamic flag from the container.", docker_image="redrange/web-injection:latest", sandbox_runtime=settings.LAB_CONTAINER_RUNTIME, points=80),
     dict(slug="forensic-skeleton", title="Skeleton DFIR", category="Digital Forensics", difficulty="Basic", description="Investigate suspicious files and recover evidence from a compromised Linux container.", docker_image="redrange/forensic-skeleton:latest", sandbox_runtime=settings.LAB_CONTAINER_RUNTIME, points=70),
 ]
+
+def auto_cleanup_loop():
+    interval = max(60, settings.AUTO_CLEANUP_INTERVAL_SECONDS)
+    while True:
+        time.sleep(interval)
+        db = SessionLocal()
+        try:
+            cleanup_expired_sessions(db, actor="scheduler")
+        except Exception:
+            db.rollback()
+        finally:
+            db.close()
 
 @app.on_event("startup")
 def startup():
@@ -79,6 +95,9 @@ def startup():
         db.commit()
     finally:
         db.close()
+    if settings.AUTO_CLEANUP_ENABLED:
+        thread = threading.Thread(target=auto_cleanup_loop, name="redrange-auto-cleanup", daemon=True)
+        thread.start()
 
 app.include_router(auth.router)
 app.include_router(labs.router)

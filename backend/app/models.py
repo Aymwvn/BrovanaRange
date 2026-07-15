@@ -162,3 +162,17 @@ class IpReputationCache(Base):
     blocked: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     error: Mapped[str] = mapped_column(String(255), default="")
     checked_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+class BlockedIpWatchlist(Base):
+    __tablename__ = "blocked_ip_watchlist"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ip: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    source: Mapped[str] = mapped_column(String(40), default="virustotal")
+    reason: Mapped[str] = mapped_column(String(255), default="")
+    malicious: Mapped[int] = mapped_column(Integer, default=0)
+    suspicious: Mapped[int] = mapped_column(Integer, default=0)
+    as_owner: Mapped[str] = mapped_column(String(255), default="")
+    country: Mapped[str] = mapped_column(String(8), default="")
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)

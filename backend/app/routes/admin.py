@@ -3,10 +3,11 @@ import hashlib
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import AntiCheatEvent, AuditLog, HoneypotEvent, Lab, LabSession, Submission, Subscription, User
+from app.models import AntiCheatEvent, AuditLog, BlockedIpWatchlist, HoneypotEvent, Lab, LabSession, Submission, Subscription, User
 from app.core.security import require_admin
-from app.schemas import AntiCheatOut, AuditOut, HoneypotEventOut, IpReputationOut, LabCreate, LabOut, LabUpdate, SubscriptionOut, SubscriptionUpdate, UserAdminOut, UserAdminUpdate
+from app.schemas import AntiCheatOut, AuditOut, BlockedIpWatchlistOut, HoneypotEventOut, IpReputationOut, LabCreate, LabOut, LabUpdate, SubscriptionOut, SubscriptionUpdate, UserAdminOut, UserAdminUpdate
 from app.services.docker_manager import docker_manager
+from app.services.lab_cleanup import cleanup_expired_sessions
 from app.services.threat_intel import get_ip_reputation
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -100,6 +101,18 @@ def active_sessions(db: Session = Depends(get_db), admin: User = Depends(require
             item["container_error"] = str(exc)
         output.append(item)
     return output
+
+@router.post("/sessions/{session_id}/stop")
+def stop_session(session_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    session = db.query(LabSession).filter_by(id=session_id).first()
+    if not session:
+        raise HTTPException(404, "Session not found")
+    stopped = docker_manager.stop_lab(session.container_id)
+    session.status = "stopped"
+    session.stopped_at = datetime.utcnow()
+    db.add(AuditLog(user_id=admin.id, action="ADMIN_SESSION_STOPPED", target=session.container_name, detail=f"session_id={session.id}, docker_removed={stopped}"))
+    db.commit()
+    return {"message": "Session stopped", "docker_removed": stopped}
 
 @router.get("/orchestrator/status")
 def orchestrator_status(admin: User = Depends(require_admin)):
@@ -232,15 +245,10 @@ def honeypot_events(db: Session = Depends(get_db), admin: User = Depends(require
         output.append(item)
     return output
 
+@router.get("/blocked-ips", response_model=list[BlockedIpWatchlistOut])
+def blocked_ips(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    return db.query(BlockedIpWatchlist).filter_by(active=True).order_by(BlockedIpWatchlist.last_seen_at.desc()).limit(200).all()
+
 @router.post("/cleanup-expired")
 def cleanup_expired(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
-    expired = db.query(LabSession).filter(LabSession.status == "running", LabSession.expires_at < datetime.utcnow()).all()
-    count = docker_manager.cleanup_expired(expired)
-    for s in expired:
-        s.status = "expired"
-        s.stopped_at = datetime.utcnow()
-    db.commit()
-    orphaned = docker_manager.cleanup_orphaned_labs()
-    db.add(AuditLog(user_id=admin.id, action="ADMIN_CLEANUP_EXPIRED", detail=f"sessions={count}, orphaned={orphaned}"))
-    db.commit()
-    return {"cleaned": count, "orphaned": orphaned}
+    return cleanup_expired_sessions(db, actor="admin", admin_user_id=admin.id)

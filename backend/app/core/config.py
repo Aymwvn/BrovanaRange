@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     VIRUSTOTAL_MALICIOUS_THRESHOLD: int = 1
     VIRUSTOTAL_CACHE_HOURS: int = 24
     HONEYPOT_CONTAINER_NAME: str = "brovanarange-honeypot"
+    AUTO_CLEANUP_ENABLED: bool = True
+    AUTO_CLEANUP_INTERVAL_SECONDS: int = 300
 
     @property
     def cors_list(self) -> list[str]:
