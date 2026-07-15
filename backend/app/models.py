@@ -130,3 +130,35 @@ class AuditLog(Base):
     ip: Mapped[str] = mapped_column(String(64), default="")
     detail: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+class HoneypotEvent(Base):
+    __tablename__ = "honeypot_events"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    event_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    source_ip: Mapped[str] = mapped_column(String(64), default="", index=True)
+    method: Mapped[str] = mapped_column(String(16), default="")
+    path: Mapped[str] = mapped_column(String(255), default="", index=True)
+    query: Mapped[str] = mapped_column(Text, default="")
+    user_agent: Mapped[str] = mapped_column(String(512), default="")
+    content_type: Mapped[str] = mapped_column(String(120), default="")
+    content_length: Mapped[int] = mapped_column(Integer, default=0)
+    severity: Mapped[str] = mapped_column(String(20), default="low", index=True)
+    reason: Mapped[str] = mapped_column(String(120), default="")
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    count: Mapped[int] = mapped_column(Integer, default=1)
+
+class IpReputationCache(Base):
+    __tablename__ = "ip_reputation_cache"
+    ip: Mapped[str] = mapped_column(String(64), primary_key=True)
+    provider: Mapped[str] = mapped_column(String(40), default="virustotal")
+    malicious: Mapped[int] = mapped_column(Integer, default=0)
+    suspicious: Mapped[int] = mapped_column(Integer, default=0)
+    harmless: Mapped[int] = mapped_column(Integer, default=0)
+    undetected: Mapped[int] = mapped_column(Integer, default=0)
+    reputation: Mapped[int] = mapped_column(Integer, default=0)
+    country: Mapped[str] = mapped_column(String(8), default="")
+    as_owner: Mapped[str] = mapped_column(String(255), default="")
+    blocked: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    error: Mapped[str] = mapped_column(String(255), default="")
+    checked_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)

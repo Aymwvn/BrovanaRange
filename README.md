@@ -47,6 +47,18 @@ Traffic flows through Nginx (TLS termination) into segmented Docker networks —
 
 BrovanaRange includes a standalone, low-interaction HTTP honeypot for capturing opportunistic scans and authentication attempts. It listens on host port `8081`, returns decoy responses for common targets such as `/admin` and `/phpmyadmin`, and records JSON events to its Docker logs. It is isolated on a dedicated internal network with no access to the application, database, Docker socket, lab networks, or persistent data.
 
+Admins can review captured honeypot hits from the Admin dashboard. The backend ingests recent honeypot container logs, stores deduplicated events, classifies sensitive-path probes, and can enrich public source IPs with VirusTotal reputation data.
+
+To enable VirusTotal IP reputation checks, set this in `.env`:
+
+```bash
+VIRUSTOTAL_API_KEY=your_api_key_here
+VIRUSTOTAL_MALICIOUS_THRESHOLD=1
+VIRUSTOTAL_CACHE_HOURS=24
+```
+
+When the API key is not configured, honeypot events still appear in the dashboard, but reputation fields show that VirusTotal enrichment is disabled.
+
 Run and monitor it with:
 
 ```bash
@@ -127,6 +139,7 @@ BrovanaRange is designed with a defense-in-depth approach across every layer:
 <summary><b>Monitoring & Observability</b></summary>
 
 - Full audit logging: auth events, lab lifecycle, flag submissions, admin actions
+- Honeypot event dashboard with optional VirusTotal IP reputation enrichment
 - Prometheus-compatible `/metrics` endpoint
 - Admin dashboards for sessions, containers, and audit logs
 </details>

@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     DEFAULT_ADMIN_PASSWORD: str = "ChangeMeNow_12345!"
     ENVIRONMENT: str = "development"
     PROMETHEUS_METRICS_TOKEN: str = ""
+    VIRUSTOTAL_API_KEY: str = ""
+    VIRUSTOTAL_MALICIOUS_THRESHOLD: int = 1
+    VIRUSTOTAL_CACHE_HOURS: int = 24
+    HONEYPOT_CONTAINER_NAME: str = "brovanarange-honeypot"
 
     @property
     def cors_list(self) -> list[str]:

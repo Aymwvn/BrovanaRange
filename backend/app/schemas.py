@@ -150,3 +150,35 @@ class AntiCheatOut(BaseModel):
     ip: str
     created_at: datetime
     model_config = {"from_attributes": True}
+
+class IpReputationOut(BaseModel):
+    ip: str
+    provider: str
+    malicious: int
+    suspicious: int
+    harmless: int
+    undetected: int
+    reputation: int
+    country: str
+    as_owner: str
+    blocked: bool
+    error: str
+    checked_at: datetime
+    model_config = {"from_attributes": True}
+
+class HoneypotEventOut(BaseModel):
+    id: int
+    source_ip: str
+    method: str
+    path: str
+    query: str
+    user_agent: str
+    content_type: str
+    content_length: int
+    severity: str
+    reason: str
+    first_seen_at: datetime
+    last_seen_at: datetime
+    count: int
+    reputation: IpReputationOut | None = None
+    model_config = {"from_attributes": True}

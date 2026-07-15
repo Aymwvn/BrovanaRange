@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import json
 import secrets
 import docker
 from docker.errors import NotFound
@@ -146,5 +147,24 @@ class DockerLabManager:
                 except NotFound:
                     pass
         return count
+
+    def read_honeypot_events(self, *, tail: int = 500) -> list[dict]:
+        try:
+            container = client.containers.get(settings.HONEYPOT_CONTAINER_NAME)
+        except NotFound:
+            return []
+        raw_logs = container.logs(tail=tail).decode("utf-8", "replace").splitlines()
+        events = []
+        for line in raw_logs:
+            line = line.strip()
+            if not line.startswith("{"):
+                continue
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if event.get("event") == "honeypot_request":
+                events.append(event)
+        return events
 
 docker_manager = DockerLabManager()
