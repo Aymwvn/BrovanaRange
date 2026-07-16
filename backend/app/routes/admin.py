@@ -1,6 +1,10 @@
-from datetime import datetime
+from datetime import datetime, timedelta
+import csv
 import hashlib
+import io
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import AntiCheatEvent, AuditLog, BlockedIpWatchlist, HoneypotEvent, Lab, LabSession, Submission, Subscription, User
@@ -81,6 +85,21 @@ def ingest_honeypot_events(db: Session) -> int:
     db.commit()
     return created
 
+def csv_response(filename: str, headers: list[str], rows: list[list[object]]) -> StreamingResponse:
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(headers)
+    writer.writerows(rows)
+    buffer.seek(0)
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+def dt(value):
+    return value.isoformat() if value else ""
+
 @router.get("/sessions")
 def active_sessions(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     sessions = db.query(LabSession).filter(LabSession.status == "running").order_by(LabSession.started_at.desc()).all()
@@ -121,6 +140,43 @@ def orchestrator_status(admin: User = Depends(require_admin)):
 @router.get("/audit", response_model=list[AuditOut])
 def audit_logs(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     return db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(100).all()
+
+@router.get("/reports/security-summary")
+def security_summary(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    ingest_honeypot_events(db)
+    now = datetime.utcnow()
+    day_ago = now - timedelta(days=1)
+    week_ago = now - timedelta(days=7)
+    high_honeypot_24h = db.query(HoneypotEvent).filter(HoneypotEvent.last_seen_at >= day_ago, HoneypotEvent.severity == "high").count()
+    failed_logins_24h = db.query(AuditLog).filter(AuditLog.created_at >= day_ago, AuditLog.action == "LOGIN_FAILED").count()
+    top_paths = db.query(HoneypotEvent.path, func.count(HoneypotEvent.id)).filter(HoneypotEvent.last_seen_at >= week_ago).group_by(HoneypotEvent.path).order_by(func.count(HoneypotEvent.id).desc()).limit(5).all()
+    top_ips = db.query(HoneypotEvent.source_ip, func.count(HoneypotEvent.id)).filter(HoneypotEvent.last_seen_at >= week_ago).group_by(HoneypotEvent.source_ip).order_by(func.count(HoneypotEvent.id).desc()).limit(5).all()
+    return {
+        "generated_at": now,
+        "window_24h": {
+            "honeypot_hits": db.query(HoneypotEvent).filter(HoneypotEvent.last_seen_at >= day_ago).count(),
+            "high_severity_honeypot_hits": high_honeypot_24h,
+            "anti_cheat_events": db.query(AntiCheatEvent).filter(AntiCheatEvent.created_at >= day_ago).count(),
+            "audit_events": db.query(AuditLog).filter(AuditLog.created_at >= day_ago).count(),
+            "failed_logins": failed_logins_24h,
+            "active_lab_sessions": db.query(LabSession).filter_by(status="running").count(),
+            "blocked_ips": db.query(BlockedIpWatchlist).filter_by(active=True).count(),
+        },
+        "window_7d": {
+            "honeypot_hits": db.query(HoneypotEvent).filter(HoneypotEvent.last_seen_at >= week_ago).count(),
+            "high_severity_honeypot_hits": db.query(HoneypotEvent).filter(HoneypotEvent.last_seen_at >= week_ago, HoneypotEvent.severity == "high").count(),
+            "anti_cheat_events": db.query(AntiCheatEvent).filter(AntiCheatEvent.created_at >= week_ago).count(),
+            "audit_events": db.query(AuditLog).filter(AuditLog.created_at >= week_ago).count(),
+            "failed_logins": db.query(AuditLog).filter(AuditLog.created_at >= week_ago, AuditLog.action == "LOGIN_FAILED").count(),
+        },
+        "top_honeypot_paths_7d": [{"path": path or "", "count": count} for path, count in top_paths],
+        "top_source_ips_7d": [{"ip": ip or "", "count": count} for ip, count in top_ips],
+    }
+
+@router.get("/exports/audit.csv")
+def export_audit_csv(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    rows = db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(1000).all()
+    return csv_response("brovanarange-audit.csv", ["id", "created_at", "user_id", "action", "target", "ip", "detail"], [[r.id, dt(r.created_at), r.user_id or "", r.action, r.target, r.ip, r.detail] for r in rows])
 
 @router.get("/users", response_model=list[UserAdminOut])
 def users(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
@@ -230,6 +286,11 @@ def upsert_subscription(user_id: int, payload: SubscriptionUpdate, db: Session =
 def anti_cheat_events(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     return db.query(AntiCheatEvent).order_by(AntiCheatEvent.created_at.desc()).limit(200).all()
 
+@router.get("/exports/anti-cheat.csv")
+def export_anti_cheat_csv(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    rows = db.query(AntiCheatEvent).order_by(AntiCheatEvent.created_at.desc()).limit(1000).all()
+    return csv_response("brovanarange-anti-cheat.csv", ["id", "created_at", "user_id", "lab_id", "severity", "reason", "ip", "detail"], [[r.id, dt(r.created_at), r.user_id or "", r.lab_id or "", r.severity, r.reason, r.ip, r.detail] for r in rows])
+
 @router.get("/honeypot/events", response_model=list[HoneypotEventOut])
 def honeypot_events(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     ingest_honeypot_events(db)
@@ -245,9 +306,20 @@ def honeypot_events(db: Session = Depends(get_db), admin: User = Depends(require
         output.append(item)
     return output
 
+@router.get("/exports/honeypot.csv")
+def export_honeypot_csv(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    ingest_honeypot_events(db)
+    rows = db.query(HoneypotEvent).order_by(HoneypotEvent.last_seen_at.desc()).limit(1000).all()
+    return csv_response("brovanarange-honeypot.csv", ["id", "first_seen_at", "last_seen_at", "source_ip", "severity", "reason", "method", "path", "query", "user_agent", "content_type", "content_length"], [[r.id, dt(r.first_seen_at), dt(r.last_seen_at), r.source_ip, r.severity, r.reason, r.method, r.path, r.query, r.user_agent, r.content_type, r.content_length] for r in rows])
+
 @router.get("/blocked-ips", response_model=list[BlockedIpWatchlistOut])
 def blocked_ips(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     return db.query(BlockedIpWatchlist).filter_by(active=True).order_by(BlockedIpWatchlist.last_seen_at.desc()).limit(200).all()
+
+@router.get("/exports/blocked-ips.csv")
+def export_blocked_ips_csv(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    rows = db.query(BlockedIpWatchlist).filter_by(active=True).order_by(BlockedIpWatchlist.last_seen_at.desc()).limit(1000).all()
+    return csv_response("brovanarange-blocked-ips.csv", ["id", "ip", "source", "reason", "malicious", "suspicious", "country", "as_owner", "first_seen_at", "last_seen_at", "active"], [[r.id, r.ip, r.source, r.reason, r.malicious, r.suspicious, r.country, r.as_owner, dt(r.first_seen_at), dt(r.last_seen_at), r.active] for r in rows])
 
 @router.post("/cleanup-expired")
 def cleanup_expired(db: Session = Depends(get_db), admin: User = Depends(require_admin)):

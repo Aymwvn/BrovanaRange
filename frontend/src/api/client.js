@@ -28,6 +28,21 @@ export async function request(path, options = {}) {
   return res.json();
 }
 
+export async function download(path, filename) {
+  const headers = {};
+  const token = localStorage.getItem('token');
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}${path}`, { headers });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function logout() {
   const refreshToken = localStorage.getItem('refreshToken');
   if (refreshToken) {
