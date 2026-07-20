@@ -7,9 +7,10 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import AntiCheatEvent, AuditLog, BlockedIpWatchlist, HoneypotEvent, Lab, LabSession, Submission, Subscription, User
+from app.models import AntiCheatEvent, AuditLog, BlockedIpWatchlist, HoneypotEvent, Lab, LabSession, SecurityAlert, Submission, Subscription, User
 from app.core.security import require_admin
-from app.schemas import AntiCheatOut, AuditOut, BlockedIpWatchlistOut, HoneypotEventOut, IpReputationOut, LabCreate, LabOut, LabUpdate, SubscriptionOut, SubscriptionUpdate, UserAdminOut, UserAdminUpdate
+from app.schemas import AntiCheatOut, AuditOut, BlockedIpWatchlistOut, HoneypotEventOut, IpReputationOut, LabCreate, LabOut, LabUpdate, SecurityAlertOut, SubscriptionOut, SubscriptionUpdate, UserAdminOut, UserAdminUpdate
+from app.services.alerts import create_alert
 from app.services.docker_manager import docker_manager
 from app.services.lab_cleanup import cleanup_expired_sessions
 from app.services.threat_intel import get_ip_reputation
@@ -81,6 +82,15 @@ def ingest_honeypot_events(db: Session) -> int:
         ))
         if severity in {"medium", "high"}:
             db.add(AuditLog(action="HONEYPOT_SUSPICIOUS_HIT", target=source_ip, detail=f"{raw.get('method', '')} {path}"))
+        if severity == "high":
+            create_alert(
+                db,
+                severity="high",
+                source="honeypot",
+                title="High severity honeypot hit",
+                message=f"{source_ip} requested {raw.get('method', '')} {path}.",
+                target=source_ip,
+            )
         created += 1
     db.commit()
     return created
@@ -129,9 +139,44 @@ def stop_session(session_id: int, db: Session = Depends(get_db), admin: User = D
     stopped = docker_manager.stop_lab(session.container_id)
     session.status = "stopped"
     session.stopped_at = datetime.utcnow()
+    if not stopped:
+        create_alert(
+            db,
+            severity="high",
+            source="lab",
+            title="Lab session stop failed",
+            message=f"Admin requested stop for {session.container_name}, but Docker did not remove the container.",
+            target=session.container_name,
+        )
     db.add(AuditLog(user_id=admin.id, action="ADMIN_SESSION_STOPPED", target=session.container_name, detail=f"session_id={session.id}, docker_removed={stopped}"))
     db.commit()
     return {"message": "Session stopped", "docker_removed": stopped}
+
+@router.get("/alerts", response_model=list[SecurityAlertOut])
+def security_alerts(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    return db.query(SecurityAlert).order_by(SecurityAlert.created_at.desc()).limit(100).all()
+
+@router.post("/alerts/{alert_id}/read", response_model=SecurityAlertOut)
+def mark_alert_read(alert_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    alert = db.query(SecurityAlert).filter_by(id=alert_id).first()
+    if not alert:
+        raise HTTPException(404, "Alert not found")
+    alert.status = "read"
+    alert.read_at = datetime.utcnow()
+    alert.read_by_user_id = admin.id
+    db.commit()
+    db.refresh(alert)
+    return alert
+
+@router.post("/alerts/read-all")
+def mark_all_alerts_read(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    unread = db.query(SecurityAlert).filter_by(status="unread").all()
+    for alert in unread:
+        alert.status = "read"
+        alert.read_at = datetime.utcnow()
+        alert.read_by_user_id = admin.id
+    db.commit()
+    return {"updated": len(unread)}
 
 @router.get("/orchestrator/status")
 def orchestrator_status(admin: User = Depends(require_admin)):
@@ -161,6 +206,8 @@ def security_summary(db: Session = Depends(get_db), admin: User = Depends(requir
             "failed_logins": failed_logins_24h,
             "active_lab_sessions": db.query(LabSession).filter_by(status="running").count(),
             "blocked_ips": db.query(BlockedIpWatchlist).filter_by(active=True).count(),
+            "unread_alerts": db.query(SecurityAlert).filter_by(status="unread").count(),
+            "high_or_critical_alerts": db.query(SecurityAlert).filter(SecurityAlert.status == "unread", SecurityAlert.severity.in_(["high", "critical"])).count(),
         },
         "window_7d": {
             "honeypot_hits": db.query(HoneypotEvent).filter(HoneypotEvent.last_seen_at >= week_ago).count(),

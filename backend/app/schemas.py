@@ -196,3 +196,16 @@ class BlockedIpWatchlistOut(BaseModel):
     last_seen_at: datetime
     active: bool
     model_config = {"from_attributes": True}
+
+class SecurityAlertOut(BaseModel):
+    id: int
+    severity: str
+    source: str
+    title: str
+    message: str
+    target: str
+    status: str
+    created_at: datetime
+    read_at: datetime | None
+    read_by_user_id: int | None
+    model_config = {"from_attributes": True}

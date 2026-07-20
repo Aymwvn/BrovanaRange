@@ -145,6 +145,7 @@ BrovanaRange is designed with a defense-in-depth approach across every layer:
 - Blocked IP watchlist populated by VirusTotal reputation results
 - Admin security summary report with 24h and 7d security metrics
 - CSV exports for honeypot events, audit logs, anti-cheat events, and blocked IPs
+- Admin Alert Center for high-priority honeypot, VirusTotal, auth, anti-cheat, and lab cleanup events
 - Prometheus-compatible `/metrics` endpoint
 - Admin dashboards for sessions, containers, and audit logs
 </details>

@@ -9,6 +9,7 @@ from slowapi.util import get_remote_address
 from app.database import get_db
 from app.core.config import settings
 from app.models import EmailOtp, OneTimeToken, RefreshToken, Subscription, User, AuditLog
+from app.services.alerts import create_alert
 from app.schemas import (
     EmailTokenIn,
     LoginIn,
@@ -121,6 +122,14 @@ def login(request: Request, payload: LoginIn, db: Session = Depends(get_db)):
             user.failed_login_count += 1
             if user.failed_login_count >= 5:
                 user.locked_until = datetime.utcnow() + timedelta(minutes=15)
+                create_alert(
+                    db,
+                    severity="high",
+                    source="auth",
+                    title="Account locked after failed logins",
+                    message=f"User {user.username} was locked after repeated failed login attempts.",
+                    target=user.username,
+                )
             db.commit()
             audit(db, user.id, request, "LOGIN_FAILED", user.username)
         raise HTTPException(status_code=401, detail="Invalid username/email or password")

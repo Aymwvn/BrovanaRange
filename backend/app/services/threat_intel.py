@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models import BlockedIpWatchlist, IpReputationCache
+from app.services.alerts import create_alert
 
 VT_IP_URL = "https://www.virustotal.com/api/v3/ip_addresses/{ip}"
 
@@ -65,6 +66,14 @@ def upsert_watchlist_entry(db: Session, reputation: IpReputationCache) -> None:
     entry.country = reputation.country
     entry.last_seen_at = datetime.utcnow()
     entry.active = True
+    create_alert(
+        db,
+        severity="critical",
+        source="virustotal",
+        title="Malicious IP added to watchlist",
+        message=f"{reputation.ip} has {reputation.malicious} malicious and {reputation.suspicious} suspicious VirusTotal detections.",
+        target=reputation.ip,
+    )
 
 
 def get_ip_reputation(db: Session, ip: str, *, force: bool = False) -> IpReputationCache:

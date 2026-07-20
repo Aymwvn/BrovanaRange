@@ -2,12 +2,22 @@ from datetime import datetime, timedelta
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.models import AntiCheatEvent, Submission
+from app.services.alerts import create_alert
 
 FAST_SOLVE_WINDOW = timedelta(seconds=45)
 RAPID_SOLVE_WINDOW = timedelta(minutes=3)
 
 def record_event(db: Session, *, user_id: int | None, lab_id: int | None, ip: str, reason: str, detail: str, severity: str = "medium"):
     db.add(AntiCheatEvent(user_id=user_id, lab_id=lab_id, ip=ip, reason=reason, detail=detail, severity=severity))
+    if severity == "high":
+        create_alert(
+            db,
+            severity="high",
+            source="anti-cheat",
+            title="High severity anti-cheat event",
+            message=detail,
+            target=f"user={user_id or ''};lab={lab_id or ''};ip={ip}",
+        )
 
 def evaluate_submission(db: Session, *, user_id: int, lab_id: int, ip: str, submitted_flag: str, correct: bool, session_started_at: datetime | None) -> tuple[bool, str]:
     reasons: list[str] = []

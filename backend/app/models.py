@@ -176,3 +176,16 @@ class BlockedIpWatchlist(Base):
     first_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+
+class SecurityAlert(Base):
+    __tablename__ = "security_alerts"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    severity: Mapped[str] = mapped_column(String(20), default="medium", index=True)
+    source: Mapped[str] = mapped_column(String(40), default="system", index=True)
+    title: Mapped[str] = mapped_column(String(160))
+    message: Mapped[str] = mapped_column(Text, default="")
+    target: Mapped[str] = mapped_column(String(255), default="", index=True)
+    status: Mapped[str] = mapped_column(String(20), default="unread", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    read_by_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
